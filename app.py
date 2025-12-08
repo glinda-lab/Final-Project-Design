@@ -33,7 +33,6 @@ if 'point_count_key' not in st.session_state:
     st.session_state['point_count_key'] = 500
 if 'selected_artwork_details' not in st.session_state:
     st.session_state['selected_artwork_details'] = None
-# 💡 [추가] 생성된 포스터 정보를 저장할 리스트
 if 'generated_posters' not in st.session_state:
     st.session_state['generated_posters'] = []
 
@@ -100,7 +99,6 @@ def get_ai_design_suggestions(artwork_image_url, artwork_title):
         content = response.choices[0].message.content
         return json.loads(content)
     except openai.APIError as e:
-        # API 오류가 발생했을 때 사용자에게 명확한 메시지를 전달
         st.error(f"AI 분석 중 API 오류 발생: Error code: {e.status} - {{'error': '{e.message}'}}")
         st.warning("API 할당량 초과 또는 키 만료 여부를 확인해주세요.")
         return None
@@ -189,14 +187,13 @@ def main():
     st.title("🖼️ AI 기반 생성형 미술 디자이너")
     st.markdown("---")
     
-    # 💡 탭 이름 수정: Tab 2를 '저장된 포스터 갤러리'로 변경
     tab1, tab2 = st.tabs(["🖼️ 작품 분석 및 포스터 생성", "🎨 저장된 포스터 갤러리"])
 
     with st.sidebar:
         st.header("설정 및 검색")
         
         # 1. 명화 검색 UI
-        search_query = st.text_input("🖼️ MET 박물관 작품 검색 (작가 이름)", st.session_state.get('last_query', "Monet"))
+        search_query = st.text_input("🖼️ MET 박물관 작품 검색 (작가 이름 또는 작품 제목)", st.session_state.get('last_query', "Monet"))
         st.session_state['last_query'] = search_query
 
         # --- 검색 버튼 ---
@@ -206,7 +203,7 @@ def main():
             st.session_state['artwork_list'] = [] 
             st.session_state['selected_artwork_details'] = None 
             
-            with st.spinner(f"'{search_query}' 작품 ID 검색 중 및 작가 필터링 중..."):
+            with st.spinner(f"'{search_query}' 작품 ID 검색 중 및 필터링 중..."):
                 object_ids = fetch_artworks(search_query)
             
             if object_ids:
@@ -217,14 +214,18 @@ def main():
                 for obj_id in object_ids:
                     detail = get_artwork_details(obj_id)
                     
-                    # 💡 AttributeError 방지를 위해 detail이 None인지 먼저 확인
                     if detail is None:
                         continue 
                         
                     artist_name_lower = detail.get('artist', '').lower()
+                    # 💡 작품 제목도 가져와서 소문자로 변환
+                    title_lower = detail.get('title', '').lower()
+
+                    # 💡 필터링 조건: 작가 이름 또는 작품 제목에 검색어가 포함되어야 함
+                    is_artist_match = search_term_lower in artist_name_lower
+                    is_title_match = search_term_lower in title_lower
                     
-                    # 작가 이름이 검색어를 포함하고, 이미지 URL이 있는 경우에만 리스트에 추가
-                    if detail['image_url'] and search_term_lower in artist_name_lower:
+                    if detail['image_url'] and (is_artist_match or is_title_match):
                         temp_list.append(detail)
                         
                         # 갤러리 표시 부하를 줄이기 위해 최대 18개만 필터링
@@ -234,7 +235,7 @@ def main():
                 st.session_state['artwork_list'] = temp_list
                 
             if not st.session_state['artwork_list']:
-                st.warning("⚠️ 검색 결과가 없거나 이미지가 포함된 작품이 없습니다. 작가 이름의 철자를 확인하거나 다른 검색어를 시도해 보세요.")
+                st.warning("⚠️ 검색 결과가 없거나 이미지가 포함된 작품이 없습니다. 검색어의 철자를 확인하거나 다른 검색어를 시도해 보세요.")
                 st.session_state['search_triggered'] = False
 
         st.markdown("---")
@@ -309,12 +310,12 @@ def main():
                         buf = io.BytesIO()
                         poster_fig.savefig(buf, format="png", bbox_inches='tight', pad_inches=0.1)
                         
-                        # 💡 [추가] 생성된 포스터 정보를 세션에 저장
+                        # 생성된 포스터 정보를 세션에 저장
                         poster_info = {
                             'title': selected_artwork['title'],
                             'artist': selected_artwork['artist'],
                             'style': selected_style,
-                            'image_data': buf.getvalue() # PNG 바이트 데이터 저장
+                            'image_data': buf.getvalue() 
                         }
                         
                         # 중복 저장을 막기 위해 현재 리스트에 같은 항목이 없으면 추가
@@ -341,7 +342,7 @@ def main():
             # --- 3. 갤러리 형식 검색 결과 표시 (작품 선택 전) ---
             if st.session_state.get('search_triggered') and st.session_state['artwork_list']:
                 st.header("🔍 검색 결과 갤러리")
-                st.caption(f"**'{st.session_state['last_query']}'** 작가와 관련된 작품을 필터링했습니다. '이 작품 선택' 버튼을 눌러 분석을 시작하세요.")
+                st.caption(f"**'{st.session_state['last_query']}'** 와 관련된 작품을 필터링했습니다. '이 작품 선택' 버튼을 눌러 분석을 시작하세요.")
                 
                 artwork_details_list = st.session_state['artwork_list']
                 
@@ -359,7 +360,7 @@ def main():
                             st.experimental_rerun() 
                             
             elif st.session_state.get('search_triggered') and not st.session_state['artwork_list']:
-                 st.warning("⚠️ 검색 결과가 없거나 이미지가 포함된 작품이 없습니다. 작가 이름의 철자를 확인하거나 다른 검색어를 시도해 보세요.")
+                 st.warning("⚠️ 검색 결과가 없거나 이미지가 포함된 작품이 없습니다. 검색어의 철자를 확인하거나 다른 검색어를 시도해 보세요.")
             
             else:
                  st.info("검색어를 입력하고 '검색 실행' 버튼을 눌러 프로젝트를 시작하세요.")
@@ -372,7 +373,7 @@ def main():
         if not saved_posters:
             st.info("아직 저장된 포스터가 없습니다. '작품 분석 및 포스터 생성' 탭에서 포스터를 만든 후 이 갤러리를 확인하세요.")
         else:
-            # 💡 저장된 포스터를 3열 갤러리 형태로 표시
+            # 저장된 포스터를 3열 갤러리 형태로 표시
             num_cols = 3
             cols = st.columns(num_cols)
             
@@ -385,7 +386,7 @@ def main():
                     col.markdown(f"**원본:** {poster['title']}")
                     col.markdown(f"**스타일:** {poster['style']}")
                     
-                    # 다운로드 버튼 재활성화 (선택 사항)
+                    # 다운로드 버튼 재활성화
                     col.download_button(
                         label="다운로드",
                         data=poster['image_data'],
