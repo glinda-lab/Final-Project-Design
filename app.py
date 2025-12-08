@@ -42,13 +42,11 @@ def fetch_artworks(search_term):
     if not search_term:
         return []
     search_url = f"{MET_API_BASE_URL}/search"
-    # MET API는 특정 필드 검색(작가만 검색 등)을 지원하지 않아 광범위 검색을 사용
     params = {'q': search_term, 'hasImages': True, 'isPublicDomain': True}
     try:
         response = requests.get(search_url, params=params)
         response.raise_for_status()
         data = response.json()
-        # 필터링 부하를 줄이기 위해 최대 100개의 ID만 가져옴
         return data.get('objectIDs', [])[:100] 
     except requests.exceptions.RequestException:
         return []
@@ -68,6 +66,7 @@ def get_artwork_details(object_id):
             'object_id': details.get('objectID')
         }
     except requests.exceptions.RequestException:
+        # 오류 발생 시 None 반환
         return None
 
 # --- 3. AI 분석 및 디자인 파라미터 추출 함수 ---
@@ -98,6 +97,11 @@ def get_ai_design_suggestions(artwork_image_url, artwork_title):
         )
         content = response.choices[0].message.content
         return json.loads(content)
+    except openai.APIError as e:
+        # API 오류가 발생했을 때 사용자에게 명확한 메시지를 전달
+        st.error(f"AI 분석 중 API 오류 발생: Error code: {e.status} - {{'error': '{e.message}'}}")
+        st.warning("API 할당량 초과 또는 키 만료 여부를 확인해주세요.")
+        return None
     except Exception as e:
         st.error(f"AI 분석 중 오류 발생: {e}")
         return None
@@ -204,17 +208,20 @@ def main():
             
             if object_ids:
                 temp_list = []
-                # 💡 작가 필터링을 위한 검색어 소문자 변환 및 공백 제거
                 search_term_lower = search_query.lower().strip()
                 
                 # 상위 100개 ID를 순회하며 상세 정보 조회 및 필터링
                 for obj_id in object_ids:
                     detail = get_artwork_details(obj_id)
                     
+                    # 💡 AttributeError 방지를 위해 detail이 None인지 먼저 확인
+                    if detail is None:
+                        continue 
+                        
                     artist_name_lower = detail.get('artist', '').lower()
                     
-                    # 💡 작가 이름이 검색어를 포함하고, 이미지 URL이 있는 경우에만 리스트에 추가
-                    if detail and detail['image_url'] and search_term_lower in artist_name_lower:
+                    # 작가 이름이 검색어를 포함하고, 이미지 URL이 있는 경우에만 리스트에 추가
+                    if detail['image_url'] and search_term_lower in artist_name_lower:
                         temp_list.append(detail)
                         
                         # 갤러리 표시 부하를 줄이기 위해 최대 18개만 필터링
@@ -344,10 +351,8 @@ def main():
         - **갤러리 확장 (선택):** 생성된 포스터 정보들을 세션 상태에 저장하여 별도의 갤러리 탭에 모아 볼 수 있습니다.
 
         ### 2. 최종 배포
-        
         1.  **Github 커밋:** 수정된 `streamlit_app.py`와 `requirements.txt`를 Github 저장소에 업로드합니다.
-        2.  **Streamlit Cloud 배포:** Streamlit Cloud에 접속하여 해당 Github 저장소를 연결하고 웹 서비스로 배포합니다.
-        """)
+        2.  **Streamlit Cloud 배포:** Streamlit Cloud에 접속하여 해당 Github 저장소를 연결하고 웹 서비스로 배포합니다.         """)
 
 
 if __name__ == "__main__":
