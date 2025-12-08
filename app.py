@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import json 
-import io # 이미지 다운로드를 위해 추가
+import io
 
 # --- 1. 환경 설정 및 API 키 설정 ---
 st.set_page_config(layout="wide", page_title="AI 기반 생성형 미술 디자이너 (최종)")
@@ -29,9 +29,11 @@ if 'ai_params' not in st.session_state:
     st.session_state['ai_params'] = None
 if 'artwork_list' not in st.session_state:
     st.session_state['artwork_list'] = []
+if 'point_count_key' not in st.session_state:
+    st.session_state['point_count_key'] = 500 # 기본값 설정
 
 
-# --- 2. MET Museum API 함수 (이전과 동일) ---
+# --- 2. MET Museum API 함수 ---
 @st.cache_data(ttl=3600)
 def fetch_artworks(search_term):
     """MET API에서 검색어를 바탕으로 유효한 작품 ID 리스트를 가져옵니다."""
@@ -45,7 +47,7 @@ def fetch_artworks(search_term):
         data = response.json()
         return data.get('objectIDs', [])[:50] 
     except requests.exceptions.RequestException as e:
-        st.error(f"작품 검색 중 오류가 발생했습니다: {e}")
+        # st.error(f"작품 검색 중 오류가 발생했습니다: {e}")
         return []
 
 @st.cache_data(ttl=3600)
@@ -70,10 +72,9 @@ def get_ai_design_suggestions(artwork_image_url, artwork_title):
     """AI에게 작품 이미지와 제목을 주어 디자인 제안을 요청하고 JSON으로 받습니다."""
     
     if not openai.api_key:
-        st.error("AI 분석을 위해 OpenAI API 키가 필요합니다.")
         return None
 
-    # 역할 기반 프롬프트 (JSON 출력 구조 명시)
+    # 역할 기반 프롬프트
     system_prompt = (
         "당신은 전문 미술 비평가이자 생성형 포스터 디자이너입니다. "
         "제공된 명화 이미지를 분석하여 그 핵심 디자인 요소(색상 팔레트, 주된 레이아웃 특징, 질감/스타일)를 설명하고, "
@@ -86,8 +87,7 @@ def get_ai_design_suggestions(artwork_image_url, artwork_title):
 
     try:
         response = openai.chat.completions.create(
-            # 💡 비용 효율적인 gpt-4o-mini 모델 사용
-            model="gpt-4o-mini", 
+            model="gpt-4o-mini", # 비용 효율적인 모델 사용
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": [
@@ -123,10 +123,10 @@ def setup_canvas(title):
     ax.set_xticks([])
     ax.set_yticks([])
     ax.set_title(title, fontsize=10, color='gray')
-    np.random.seed(42) # 재현성을 위해 시드 고정
+    np.random.seed(42)
     return fig, ax
 
-def generate_impressionism_touch_poster(params):
+def generate_impressionism_touch_poster(params, point_count):
     """스타일 1: 인상주의 터치 (수많은 작은 점 흩뿌리기)"""
     colors = params.get('color_palette', ['#FF0000', '#0000FF', '#00FF00', '#FFFF00'])
     layers = params.get('layers', 5)
@@ -134,7 +134,7 @@ def generate_impressionism_touch_poster(params):
     
     fig, ax = setup_canvas("스타일 1: 인상주의 터치")
     
-    N_POINTS = 500 
+    N_POINTS = point_count # 💡 사이드바 값 적용
     
     for i in range(layers):
         color = colors[i % len(colors)] 
@@ -146,14 +146,14 @@ def generate_impressionism_touch_poster(params):
         ax.scatter(x, y, 
                    s=np.random.uniform(10, 50), 
                    color=color, 
-                   alpha=0.15, # 투명도 조정
+                   alpha=0.15,
                    edgecolors='none') 
         
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     return fig
 
-def generate_layered_lines_poster(params):
+def generate_layered_lines_poster(params, point_count):
     """스타일 2: 레이어드 라인 (겹쳐진 수평/수직 선)"""
     colors = params.get('color_palette', ['#FF0000', '#0000FF', '#00FF00', '#FFFF00'])
     layers = params.get('layers', 5)
@@ -161,9 +161,9 @@ def generate_layered_lines_poster(params):
     
     fig, ax = setup_canvas("스타일 2: 레이어드 라인")
     
-    N_LINES = 100 
+    N_LINES = point_count # 💡 사이드바 값 적용 (선 개수)
     
-    for i in range(layers * 2): # 레이어 수의 두 배만큼 선을 그림
+    for i in range(N_LINES): # N_LINES 만큼 선을 그림
         color = colors[i % len(colors)]
         
         # 선 위치 및 각도에 불규칙성 추가
@@ -171,11 +171,14 @@ def generate_layered_lines_poster(params):
         end = np.random.uniform(0, 1, 2)
         
         # wobble factor에 따라 선의 길이나 위치를 왜곡
-        if i % 2 == 0: # 수평선 경향
-             ax.plot([start[0], end[0] + wobble*0.5], [0.5 + np.random.normal(0, wobble*0.05), 0.5 + np.random.normal(0, wobble*0.05)], 
+        # 홀수/짝수 인덱스에 따라 수평/수직 경향을 줌
+        if i % 2 == 0: 
+             ax.plot([start[0], end[0] + wobble*0.5], 
+                     [start[1] + np.random.normal(0, wobble*0.05), start[1] + np.random.normal(0, wobble*0.05)], 
                     color=color, linewidth=np.random.uniform(1, 5), alpha=0.3, zorder=i)
-        else: # 수직선 경향
-             ax.plot([0.5 + np.random.normal(0, wobble*0.05), 0.5 + np.random.normal(0, wobble*0.05)], [start[1], end[1] + wobble*0.5], 
+        else: 
+             ax.plot([start[0] + np.random.normal(0, wobble*0.05), start[0] + np.random.normal(0, wobble*0.05)], 
+                     [start[1], end[1] + wobble*0.5], 
                     color=color, linewidth=np.random.uniform(1, 5), alpha=0.3, zorder=i)
 
     ax.set_xlim(0, 1)
@@ -183,14 +186,14 @@ def generate_layered_lines_poster(params):
     return fig
 
 def generate_convex_tiles_poster(params):
-    """스타일 3: 볼록한 타일 (그리드 형태의 타일 패턴)"""
+    """스타일 3: 볼록한 타일 (그리드 형태의 타일 패턴) - layers 파라미터로 제어"""
     colors = params.get('color_palette', ['#FF0000', '#0000FF', '#00FF00', '#FFFF00'])
     layers = params.get('layers', 5)
     wobble = params.get('wobble_factor', 0.2)
     
     fig, ax = setup_canvas("스타일 3: 볼록한 타일")
     
-    GRID_SIZE = layers # 레이어 수만큼 격자를 나눔
+    GRID_SIZE = layers # layers 파라미터가 격자 크기를 제어
     STEP = 1.0 / GRID_SIZE
     
     for i in range(GRID_SIZE):
@@ -203,7 +206,7 @@ def generate_convex_tiles_poster(params):
             # wobble factor에 따라 크기(radius) 변동
             radius = (STEP / 2) * (1 - wobble * np.random.rand())
             
-            # 원형 타일 (plt.Circle 사용)
+            # 원형 타일
             circle = plt.Circle((center_x, center_y), radius, 
                                 color=color, alpha=0.8, edgecolor='none')
             ax.add_patch(circle)
@@ -218,21 +221,21 @@ def main():
     st.title("🖼️ AI 기반 생성형 미술 디자이너")
     st.markdown("---")
     
-    # 탭 구성: 작품 분석/생성과 갤러리 (갤러리는 현재 다운로드 기능으로 대체)
+    # 탭 구성
     tab1, tab2 = st.tabs(["🖼️ 작품 분석 및 포스터 생성", "💡 확장 가이드"])
 
-    with tab1:
-        st.sidebar.header("설정 및 검색")
+    with st.sidebar:
+        st.header("설정 및 검색")
         
         # 1. 명화 검색 및 선택 UI 
-        search_query = st.sidebar.text_input("🖼️ MET 박물관 작품 검색", st.session_state.get('last_query', "Monet"))
+        search_query = st.text_input("🖼️ MET 박물관 작품 검색", st.session_state.get('last_query', "Monet"))
         st.session_state['last_query'] = search_query
 
         # --- 검색 버튼 ---
-        if st.sidebar.button("🔍 검색 실행", type="secondary"):
+        if st.button("🔍 검색 실행", type="secondary"):
             st.session_state['search_triggered'] = True
-            st.session_state['ai_params'] = None # 새 검색 시 AI 분석 결과 초기화
-            st.session_state['artwork_list'] = [] # 작품 목록 초기화
+            st.session_state['ai_params'] = None
+            st.session_state['artwork_list'] = []
             
             with st.spinner(f"'{search_query}' 작품 ID 검색 중..."):
                 object_ids = fetch_artworks(search_query)
@@ -255,12 +258,29 @@ def main():
             artwork_details_list = st.session_state['artwork_list']
             options = [f"{art['title']} - {art['artist']}" for art in artwork_details_list]
             
-            selected_option = st.sidebar.selectbox("🎨 작품 선택", options, key='selected_option')
+            selected_option = st.selectbox("🎨 작품 선택", options, key='selected_option')
             
             if selected_option:
                 selected_artwork = next((art for art in artwork_details_list if f"{art['title']} - {art['artist']}" == selected_option), None)
+        
+        st.markdown("---")
+        st.header("포스터 미세 조정")
+        # 💡 점/선 개수 입력 슬라이더 추가
+        st.slider(
+            '점/선 개수 (밀도)', 
+            100, 
+            2000, 
+            st.session_state['point_count_key'], # 현재 세션 상태의 값을 기본값으로
+            100, 
+            key='point_count_key', # 세션 상태 업데이트 키
+            help="인상주의 터치 및 레이어드 라인 스타일에서 사용되는 기본 요소의 개수를 조절합니다."
+        )
 
 
+    with tab1:
+        # 1단계에서 사이드바에서 받은 point_count_val 변수를 가져옵니다.
+        point_count_val = st.session_state.get('point_count_key', 500)
+        
         # 2. 선택된 작품 표시 및 AI 분석 실행
         if selected_artwork:
             st.header(f"🖼️ 원본 작품: {selected_artwork['title']}")
@@ -288,13 +308,14 @@ def main():
                     st.markdown("---")
                     st.subheader("📝 AI의 디자인 분석 및 제안")
                     
-                    if 'analysis' in params:
-                        st.info(params['analysis'])
-                        analysis_text = params['analysis']
-                        del params['analysis'] 
-
+                    # analysis 키만 따로 추출하여 표시
+                    analysis_text = params.get('analysis', "분석 결과가 없습니다.")
+                    st.info(analysis_text)
+                    
                     st.markdown("### 📐 추출된 생성형 파라미터")
-                    st.code(json.dumps(params, indent=2))
+                    # analysis 키는 JSON 출력에서 제외 (이미 위에서 사용됨)
+                    param_display = {k: v for k, v in params.items() if k != 'analysis'}
+                    st.code(json.dumps(param_display, indent=2))
                     
                     st.markdown("---")
                     st.subheader("✨ 생성형 포스터 결과")
@@ -309,11 +330,14 @@ def main():
                     poster_fig = None
                     try:
                         if selected_style == "레이어드 라인":
-                            poster_fig = generate_layered_lines_poster(st.session_state['ai_params'])
+                            # 💡 point_count_val 인수를 전달
+                            poster_fig = generate_layered_lines_poster(st.session_state['ai_params'], point_count_val)
                         elif selected_style == "볼록한 타일":
-                            poster_fig = generate_convex_tiles_poster(st.session_state['ai_params'])
+                            # point_count_val은 사용하지 않음
+                            poster_fig = generate_convex_tiles_poster(st.session_state['ai_params']) 
                         else:
-                            poster_fig = generate_impressionism_touch_poster(st.session_state['ai_params'])
+                            # 💡 point_count_val 인수를 전달
+                            poster_fig = generate_impressionism_touch_poster(st.session_state['ai_params'], point_count_val)
                         
                         st.pyplot(poster_fig)
                         st.success(f"포스터 생성 완료! (스타일: {selected_style})")
@@ -333,34 +357,18 @@ def main():
                         st.error(f"포스터 생성 중 오류 발생: {e}")
                         
         else:
-            st.info("검색어를 입력하고 '검색 실행' 버튼을 눌러 프로젝트를 시작하세요.")
+            st.info("검색어를 입력하고 '검색 실행' 버튼을 누르거나, 작품을 선택하여 프로젝트를 시작하세요.")
 
     with tab2:
         st.header("💡 추가 확장 및 배포 가이드")
         st.markdown("""
         ### 1. 갤러리 기능 추가
-        - 현재는 다운로드 버튼만 제공되지만, 생성된 포스터 정보를 세션 상태(`st.session_state`) 리스트에 저장하여 별도의 '갤러리' 탭에 모아 볼 수 있습니다.
+        - 생성된 포스터 정보를 세션 상태(`st.session_state`) 리스트에 저장하여 별도의 '갤러리' 탭에 모아 볼 수 있습니다.
 
-        ```python
-        # 예시: 갤러리 저장 로직
-        if st.button("갤러리에 포스터 추가"):
-            if 'gallery' not in st.session_state:
-                st.session_state['gallery'] = []
-            
-            # 저장할 데이터 (예: 이미지 URL, AI 분석 결과, 스타일 이름 등)
-            gallery_item = {
-                'title': selected_artwork['title'],
-                'style': selected_style,
-                'params': st.session_state['ai_params'] 
-                # 실제 이미지 파일 저장은 복잡하므로, 파라미터만 저장 후 갤러리 탭에서 재 생성 권장
-            }
-            st.session_state['gallery'].append(gallery_item)
-        ```
-
-        ### 2. 최종 배포 
+        ### 2. 최종 배포
         1.  **requirements.txt 확인:** `streamlit`, `requests`, `openai`, `matplotlib`, `numpy` 라이브러리가 포함되어 있는지 확인합니다.
         2.  **Github 커밋:** 수정된 `streamlit_app.py`와 `requirements.txt`를 Github 저장소에 업로드합니다.
-        3.  **Streamlit Cloud 배포:** Streamlit Cloud에 접속하여 해당 Github 저장소를 연결하고 앱을 배포합니다.
+        3.  **Streamlit Cloud 배포:** Streamlit Cloud에 접속하여 해당 Github 저장소를 연결하고 웹 서비스로 배포합니다.
         """)
 
 if __name__ == "__main__":
