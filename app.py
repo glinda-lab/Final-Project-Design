@@ -7,22 +7,22 @@ import os
 import json 
 import io
 
-# --- 1. 환경 설정 및 API 키 설정 ---
-st.set_page_config(layout="wide", page_title="AI 기반 생성형 미술 디자이너")
+# --- 1. Environment Setup and API Key Configuration ---
+st.set_page_config(layout="wide", page_title="AI-Powered Generative Art Designer")
 
-# OpenAI API 키 설정
+# OpenAI API Key Configuration
 try:
     openai.api_key = st.secrets["OPENAI_API_KEY"]
 except KeyError:
     openai.api_key = os.getenv("OPENAI_API_KEY")
     if not openai.api_key:
-         st.error("⚠️ OpenAI API 키를 설정해주세요! (Streamlit Secrets 또는 환경 변수)")
+         st.error("⚠️ Please set up the OpenAI API Key! (Streamlit Secrets or environment variable)")
 
 
-# MET Museum API 기본 URL
+# MET Museum API Base URL
 MET_API_BASE_URL = "https://collectionapi.metmuseum.org/public/collection/v1"
 
-# 초기 상태 설정 및 키 정리
+# Initialize Session State Variables
 if 'search_triggered' not in st.session_state:
     st.session_state['search_triggered'] = False
 if 'ai_params' not in st.session_state:
@@ -33,55 +33,59 @@ if 'point_count_key' not in st.session_state:
     st.session_state['point_count_key'] = 500
 if 'selected_artwork_details' not in st.session_state:
     st.session_state['selected_artwork_details'] = None
+# [Added] List to store generated poster information
 if 'generated_posters' not in st.session_state:
     st.session_state['generated_posters'] = []
 
 
-# --- 2. MET Museum API 함수 ---
+# --- 2. MET Museum API Functions ---
 @st.cache_data(ttl=3600)
 def fetch_artworks(search_term):
-    """MET API에서 검색어를 바탕으로 유효한 작품 ID 리스트를 가져옵니다."""
+    """Fetches a list of valid artwork IDs based on the search term from the MET API."""
     if not search_term:
         return []
     search_url = f"{MET_API_BASE_URL}/search"
+    # Uses broad search as MET API does not support field-specific search (e.g., artist only) in this endpoint
     params = {'q': search_term, 'hasImages': True, 'isPublicDomain': True}
     try:
         response = requests.get(search_url, params=params)
         response.raise_for_status()
         data = response.json()
+        # Fetches only up to 100 IDs to reduce filtering load
         return data.get('objectIDs', [])[:100] 
     except requests.exceptions.RequestException:
         return []
 
 @st.cache_data(ttl=3600)
 def get_artwork_details(object_id):
-    """특정 작품 ID의 상세 정보(이미지 URL, 제목, 작가)를 가져옵니다."""
+    """Fetches detailed information (image URL, title, artist) for a specific artwork ID."""
     detail_url = f"{MET_API_BASE_URL}/objects/{object_id}"
     try:
         response = requests.get(detail_url)
         response.raise_for_status()
         details = response.json()
         return {
-            'title': details.get('title', '제목 없음'),
-            'artist': details.get('artistDisplayName', '작가 미상'),
+            'title': details.get('title', 'Untitled'),
+            'artist': details.get('artistDisplayName', 'Unknown Artist'),
             'image_url': details.get('primaryImageSmall', details.get('primaryImage', '')),
             'object_id': details.get('objectID')
         }
     except requests.exceptions.RequestException:
+        # Return None on error
         return None
 
-# --- 3. AI 분석 및 디자인 파라미터 추출 함수 ---
+# --- 3. AI Analysis and Design Parameter Extraction Function ---
 def get_ai_design_suggestions(artwork_image_url, artwork_title):
     if not openai.api_key:
         return None
 
     system_prompt = (
-        "당신은 전문 미술 비평가이자 생성형 포스터 디자이너입니다. 제공된 명화 이미지를 분석하여 그 핵심 디자인 요소(색상 팔레트, 주된 레이아웃 특징, 질감/스타일)를 설명하고, "
-        "이를 바탕으로 Python Matplotlib 생성형 포스터 코드에 사용할 3가지 핵심 파라미터를 JSON 형식으로 제안하세요. "
-        "출력 JSON은 반드시 'analysis' (분석 텍스트), 'color_palette' (4개의 HEX 코드 리스트), 'layers' (3~10 사이 정수), 'wobble_factor' (0.1~0.5 사이 부동소수점) 네 가지 키를 포함해야 합니다. "
-        "분석 결과와 JSON만 출력하세요."
+        "You are an expert art critic and generative poster designer. Analyze the provided masterpiece image and describe its core design elements (color palette, main layout features, texture/style). "
+        "Based on this, suggest 3 core parameters for use in a Python Matplotlib generative poster code in JSON format. "
+        "The output JSON must strictly include the four keys: 'analysis' (analysis text), 'color_palette' (list of 4 HEX codes), 'layers' (integer between 3 and 10), and 'wobble_factor' (float between 0.1 and 0.5). "
+        "Output only the analysis and the JSON."
     )
-    user_prompt = f"이 작품 '{artwork_title}'을 분석하고 디자인 파라미터를 추출해 주세요."
+    user_prompt = f"Analyze this artwork '{artwork_title}' and extract design parameters."
 
     try:
         response = openai.chat.completions.create(
@@ -99,14 +103,15 @@ def get_ai_design_suggestions(artwork_image_url, artwork_title):
         content = response.choices[0].message.content
         return json.loads(content)
     except openai.APIError as e:
-        st.error(f"AI 분석 중 API 오류 발생: Error code: {e.status} - {{'error': '{e.message}'}}")
-        st.warning("API 할당량 초과 또는 키 만료 여부를 확인해주세요.")
+        # Provide a clear message to the user when an API error occurs
+        st.error(f"API Error during AI analysis: Error code: {e.status} - {{'error': '{e.message}'}}")
+        st.warning("Please check if the API quota is exceeded or the key has expired.")
         return None
     except Exception as e:
-        st.error(f"AI 분석 중 오류 발생: {e}")
+        st.error(f"Error occurred during AI analysis: {e}")
         return None
 
-# --- 4. 생성형 포스터 생성 함수 (3가지 스타일) ---
+# --- 4. Generative Poster Creation Functions (3 Styles) ---
 def setup_canvas(title):
     fig, ax = plt.subplots(figsize=(8, 8))
     fig.patch.set_facecolor("#FFFFFF")
@@ -118,12 +123,12 @@ def setup_canvas(title):
     return fig, ax
 
 def generate_impressionism_touch_poster(params, point_count):
-    """스타일 1: 인상주의 터치"""
+    """Style 1: Impressionism Touch"""
     colors = params.get('color_palette', ['#FF0000', '#0000FF', '#00FF00', '#FFFF00'])
     layers = params.get('layers', 5)
     wobble = params.get('wobble_factor', 0.2)
     
-    fig, ax = setup_canvas("스타일 1: 인상주의 터치")
+    fig, ax = setup_canvas("Style 1: Impressionism Touch")
     
     N_POINTS = point_count 
     
@@ -136,12 +141,12 @@ def generate_impressionism_touch_poster(params, point_count):
     return fig
 
 def generate_layered_lines_poster(params, point_count):
-    """스타일 2: 레이어드 라인"""
+    """Style 2: Layered Lines"""
     colors = params.get('color_palette', ['#FF0000', '#0000FF', '#00FF00', '#FFFF00'])
     layers = params.get('layers', 5)
     wobble = params.get('wobble_factor', 0.2)
     
-    fig, ax = setup_canvas("스타일 2: 레이어드 라인")
+    fig, ax = setup_canvas("Style 2: Layered Lines")
     
     N_LINES = point_count 
     
@@ -161,12 +166,12 @@ def generate_layered_lines_poster(params, point_count):
     return fig
 
 def generate_convex_tiles_poster(params):
-    """스타일 3: 볼록한 타일"""
+    """Style 3: Convex Tiles"""
     colors = params.get('color_palette', ['#FF0000', '#0000FF', '#00FF00', '#FFFF00'])
     layers = params.get('layers', 5)
     wobble = params.get('wobble_factor', 0.2)
     
-    fig, ax = setup_canvas("스타일 3: 볼록한 타일")
+    fig, ax = setup_canvas("Style 3: Convex Tiles")
     
     GRID_SIZE = layers
     STEP = 1.0 / GRID_SIZE
@@ -182,73 +187,77 @@ def generate_convex_tiles_poster(params):
             ax.add_patch(circle)
     return fig
 
-# --- 5. Streamlit 메인 앱 구현 ---
+# --- 5. Streamlit Main App Implementation ---
 def main():
-    st.title("🖼️ AI 기반 생성형 미술 디자이너")
+    st.title("🖼️ AI-Powered Generative Art Designer")
     st.markdown("---")
     
-    tab1, tab2 = st.tabs(["🖼️ 작품 분석 및 포스터 생성", "🎨 저장된 포스터 갤러리"])
+    # Updated Tab Names
+    tab1, tab2 = st.tabs(["🖼️ Artwork Analysis & Poster Generation", "🎨 Saved Poster Gallery"])
 
     with st.sidebar:
-        st.header("설정 및 검색")
+        st.header("Settings & Search")
         
-        # 1. 명화 검색 UI
-        search_query = st.text_input("🖼️ MET 박물관 작품 검색 (작가 이름 또는 작품 제목)", st.session_state.get('last_query', "Monet"))
+        # 1. Artwork Search UI
+        search_query = st.text_input("🖼️ MET Museum Artwork Search (Artist Name or Artwork Title)", st.session_state.get('last_query', "Monet"))
         st.session_state['last_query'] = search_query
 
-        # --- 검색 버튼 ---
-        if st.button("🔍 검색 실행", type="secondary"):
+        # --- Search Button ---
+        if st.button("🔍 Execute Search", type="secondary"):
             st.session_state['search_triggered'] = True
             st.session_state['ai_params'] = None 
             st.session_state['artwork_list'] = [] 
             st.session_state['selected_artwork_details'] = None 
             
-            with st.spinner(f"'{search_query}' 작품 ID 검색 중 및 필터링 중..."):
+            with st.spinner(f"Searching for Artwork IDs and Filtering for '{search_query}'..."):
                 object_ids = fetch_artworks(search_query)
             
             if object_ids:
                 temp_list = []
+                # Convert search term to lowercase and strip for robust filtering
                 search_term_lower = search_query.lower().strip()
                 
-                # 상위 100개 ID를 순회하며 상세 정보 조회 및 필터링
+                # Iterate through the top 100 IDs to fetch details and filter
                 for obj_id in object_ids:
                     detail = get_artwork_details(obj_id)
                     
+                    # Check for None to prevent AttributeError
                     if detail is None:
                         continue 
                         
                     artist_name_lower = detail.get('artist', '').lower()
-                    # 💡 작품 제목도 가져와서 소문자로 변환
+                    # Convert artwork title to lowercase for comparison
                     title_lower = detail.get('title', '').lower()
 
-                    # 💡 필터링 조건: 작가 이름 또는 작품 제목에 검색어가 포함되어야 함
+                    # Filtering Condition: Search term must be in either Artist Name OR Artwork Title
                     is_artist_match = search_term_lower in artist_name_lower
                     is_title_match = search_term_lower in title_lower
                     
+                    # Only append if image exists AND title or artist matches the search term
                     if detail['image_url'] and (is_artist_match or is_title_match):
                         temp_list.append(detail)
                         
-                        # 갤러리 표시 부하를 줄이기 위해 최대 18개만 필터링
+                        # Limit to max 18 results to prevent gallery overload
                         if len(temp_list) >= 18: 
                              break
                              
                 st.session_state['artwork_list'] = temp_list
                 
             if not st.session_state['artwork_list']:
-                st.warning("⚠️ 검색 결과가 없거나 이미지가 포함된 작품이 없습니다. 검색어의 철자를 확인하거나 다른 검색어를 시도해 보세요.")
+                st.warning("⚠️ No search results found or no images available for the artworks. Check the spelling or try a different search term.")
                 st.session_state['search_triggered'] = False
 
         st.markdown("---")
-        st.header("포스터 미세 조정")
-        # 점/선 개수 입력 슬라이더
+        st.header("Poster Fine-Tuning")
+        # Point/Line Count Slider
         st.slider(
-            '점/선 개수 (밀도)', 
+            'Point/Line Count (Density)', 
             100, 
             2000, 
             st.session_state['point_count_key'],
             100, 
             key='point_count_key',
-            help="인상주의 터치 및 레이어드 라인 스타일에서 사용되는 요소의 개수를 조절합니다."
+            help="Adjusts the number of elements used in the Impressionism Touch and Layered Lines styles."
         )
 
 
@@ -257,9 +266,9 @@ def main():
         point_count_val = st.session_state.get('point_count_key', 500)
         
         if selected_artwork:
-            # --- 2. 작품 상세 정보 및 AI 분석 UI (선택 완료 시) ---
-            st.header(f"🖼️ 원본 작품: {selected_artwork['title']}")
-            st.markdown(f"**작가:** {selected_artwork['artist']} | **ID:** {selected_artwork['object_id']}")
+            # --- 2. Artwork Details and AI Analysis UI (After Selection) ---
+            st.header(f"🖼️ Original Artwork: {selected_artwork['title']}")
+            st.markdown(f"**Artist:** {selected_artwork['artist']} | **ID:** {selected_artwork['object_id']}")
             
             col1, col2 = st.columns([1, 2])
             
@@ -267,11 +276,11 @@ def main():
                 st.image(selected_artwork['image_url'], use_column_width=True, caption=selected_artwork['title'])
                 
             with col2:
-                st.subheader("작품 분석 및 포스터 생성")
+                st.subheader("Artwork Analysis and Poster Generation")
                 
-                if st.button("🤖 AI 분석 및 디자인 파라미터 추출 시작", type="primary"):
+                if st.button("🤖 Start AI Analysis and Parameter Extraction", type="primary"):
                     st.session_state['ai_params'] = None 
-                    with st.spinner("AI가 명화 분석 및 파라미터 추출 중입니다..."):
+                    with st.spinner("AI is analyzing the masterpiece and extracting parameters..."):
                         params = get_ai_design_suggestions(selected_artwork['image_url'], selected_artwork['title'])
                         st.session_state['ai_params'] = params
                 
@@ -279,46 +288,46 @@ def main():
                     params = st.session_state['ai_params']
                     
                     st.markdown("---")
-                    st.subheader("📝 AI의 디자인 분석 및 제안")
-                    analysis_text = params.get('analysis', "분석 결과가 없습니다.")
+                    st.subheader("📝 AI Design Analysis and Suggestion")
+                    analysis_text = params.get('analysis', "No analysis result available.")
                     st.info(analysis_text)
                     
-                    st.markdown("### 📐 추출된 생성형 파라미터")
+                    st.markdown("### 📐 Extracted Generative Parameters")
                     param_display = {k: v for k, v in params.items() if k != 'analysis'}
                     st.code(json.dumps(param_display, indent=2))
                     
                     st.markdown("---")
-                    st.subheader("✨ 생성형 포스터 결과")
+                    st.subheader("✨ Generative Poster Result")
 
                     selected_style = st.selectbox(
-                        "🎨 포스터 스타일 선택", 
-                        ["인상주의 터치", "레이어드 라인", "볼록한 타일"]
+                        "🎨 Select Poster Style", 
+                        ["Impressionism Touch", "Layered Lines", "Convex Tiles"]
                     )
                     
                     poster_fig = None
                     try:
-                        if selected_style == "레이어드 라인":
+                        if selected_style == "Layered Lines":
                             poster_fig = generate_layered_lines_poster(st.session_state['ai_params'], point_count_val)
-                        elif selected_style == "볼록한 타일":
+                        elif selected_style == "Convex Tiles":
                             poster_fig = generate_convex_tiles_poster(st.session_state['ai_params']) 
-                        else:
+                        else: # Default to Impressionism Touch
                             poster_fig = generate_impressionism_touch_poster(st.session_state['ai_params'], point_count_val)
                         
                         st.pyplot(poster_fig)
-                        st.success(f"포스터 생성 완료! (스타일: {selected_style})")
+                        st.success(f"Poster Generation Complete! (Style: {selected_style})")
                         
                         buf = io.BytesIO()
                         poster_fig.savefig(buf, format="png", bbox_inches='tight', pad_inches=0.1)
                         
-                        # 생성된 포스터 정보를 세션에 저장
+                        # Save the generated poster info to session state
                         poster_info = {
                             'title': selected_artwork['title'],
                             'artist': selected_artwork['artist'],
                             'style': selected_style,
-                            'image_data': buf.getvalue() 
+                            'image_data': buf.getvalue() # Store PNG byte data
                         }
                         
-                        # 중복 저장을 막기 위해 현재 리스트에 같은 항목이 없으면 추가
+                        # Prevent duplicate saving
                         is_duplicate = any(
                             p['title'] == poster_info['title'] and 
                             p['style'] == poster_info['style'] 
@@ -329,20 +338,20 @@ def main():
 
 
                         st.download_button(
-                            label="💾 포스터 PNG 다운로드",
+                            label="💾 Download Poster PNG",
                             data=buf.getvalue(),
                             file_name=f"{selected_artwork['title']}_{selected_style}_poster.png",
                             mime="image/png"
                         )
                         
                     except Exception as e:
-                        st.error(f"포스터 생성 중 오류 발생: {e}")
+                        st.error(f"Error occurred during poster generation: {e}")
                         
         else:
-            # --- 3. 갤러리 형식 검색 결과 표시 (작품 선택 전) ---
+            # --- 3. Gallery Display of Search Results (Before Selection) ---
             if st.session_state.get('search_triggered') and st.session_state['artwork_list']:
-                st.header("🔍 검색 결과 갤러리")
-                st.caption(f"**'{st.session_state['last_query']}'** 와 관련된 작품을 필터링했습니다. '이 작품 선택' 버튼을 눌러 분석을 시작하세요.")
+                st.header("🔍 Search Results Gallery")
+                st.caption(f"Artworks related to '**{st.session_state['last_query']}**' have been filtered. Click the 'Select This Artwork' button to start analysis.")
                 
                 artwork_details_list = st.session_state['artwork_list']
                 
@@ -355,25 +364,25 @@ def main():
                         st.image(art['image_url'], use_column_width=True)
                         st.caption(f"**{art['title']}** - {art['artist']}")
                         
-                        if st.button("이 작품 선택", key=f"select_art_{art['object_id']}"):
+                        if st.button("Select This Artwork", key=f"select_art_{art['object_id']}"):
                             st.session_state['selected_artwork_details'] = art
                             st.experimental_rerun() 
                             
             elif st.session_state.get('search_triggered') and not st.session_state['artwork_list']:
-                 st.warning("⚠️ 검색 결과가 없거나 이미지가 포함된 작품이 없습니다. 검색어의 철자를 확인하거나 다른 검색어를 시도해 보세요.")
+                 st.warning("⚠️ No search results found or no images available for the artworks. Check the spelling or try a different search term.")
             
             else:
-                 st.info("검색어를 입력하고 '검색 실행' 버튼을 눌러 프로젝트를 시작하세요.")
+                 st.info("Enter a search query and click 'Execute Search' to start the project.")
 
     with tab2:
-        st.header("🎨 저장된 포스터 갤러리")
+        st.header("🎨 Saved Poster Gallery")
         
         saved_posters = st.session_state['generated_posters']
         
         if not saved_posters:
-            st.info("아직 저장된 포스터가 없습니다. '작품 분석 및 포스터 생성' 탭에서 포스터를 만든 후 이 갤러리를 확인하세요.")
+            st.info("No posters saved yet. Create a poster in the 'Artwork Analysis & Poster Generation' tab and check this gallery.")
         else:
-            # 저장된 포스터를 3열 갤러리 형태로 표시
+            # Display saved posters in a 3-column gallery format
             num_cols = 3
             cols = st.columns(num_cols)
             
@@ -381,14 +390,14 @@ def main():
                 col = cols[index % num_cols]
                 
                 with col:
-                    # 저장된 바이트 데이터를 이미지로 표시
+                    # Display the image from stored byte data
                     col.image(poster['image_data'], caption=f"{poster['style']} - {poster['title']}", use_column_width='always')
-                    col.markdown(f"**원본:** {poster['title']}")
-                    col.markdown(f"**스타일:** {poster['style']}")
+                    col.markdown(f"**Original:** {poster['title']}")
+                    col.markdown(f"**Style:** {poster['style']}")
                     
-                    # 다운로드 버튼 재활성화
+                    # Re-enable download button
                     col.download_button(
-                        label="다운로드",
+                        label="Download",
                         data=poster['image_data'],
                         file_name=f"{poster['title']}_{poster['style']}_saved.png",
                         mime="image/png",
