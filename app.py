@@ -97,7 +97,7 @@ def get_ai_design_suggestions(artwork_image_url, artwork_title):
 
     try:
         response = openai.chat.completions.create(
-            model="gpt-4o", # 이미지를 처리할 수 있는 멀티모달 모델
+            model="gpt-4o-mini", # 이미지를 처리할 수 있는 멀티모달 모델
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": [
