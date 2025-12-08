@@ -8,7 +8,7 @@ import json
 import io
 
 # --- 1. 환경 설정 및 API 키 설정 ---
-st.set_page_config(layout="wide", page_title="AI 기반 생성형 미술 디자이너 (갤러리)")
+st.set_page_config(layout="wide", page_title="AI 기반 생성형 미술 디자이너 (작가 필터링)")
 
 # OpenAI API 키 설정
 try:
@@ -31,7 +31,7 @@ if 'artwork_list' not in st.session_state:
     st.session_state['artwork_list'] = []
 if 'point_count_key' not in st.session_state:
     st.session_state['point_count_key'] = 500
-if 'selected_artwork_details' not in st.session_state: # 선택된 작품 상세 정보를 저장
+if 'selected_artwork_details' not in st.session_state:
     st.session_state['selected_artwork_details'] = None
 
 
@@ -42,12 +42,14 @@ def fetch_artworks(search_term):
     if not search_term:
         return []
     search_url = f"{MET_API_BASE_URL}/search"
+    # MET API는 특정 필드 검색(작가만 검색 등)을 지원하지 않아 광범위 검색을 사용
     params = {'q': search_term, 'hasImages': True, 'isPublicDomain': True}
     try:
         response = requests.get(search_url, params=params)
         response.raise_for_status()
         data = response.json()
-        return data.get('objectIDs', [])[:50] 
+        # 필터링 부하를 줄이기 위해 최대 100개의 ID만 가져옴
+        return data.get('objectIDs', [])[:100] 
     except requests.exceptions.RequestException:
         return []
 
@@ -71,7 +73,6 @@ def get_artwork_details(object_id):
 # --- 3. AI 분석 및 디자인 파라미터 추출 함수 ---
 def get_ai_design_suggestions(artwork_image_url, artwork_title):
     if not openai.api_key:
-        st.error("AI 분석을 위해 OpenAI API 키가 필요합니다.")
         return None
 
     system_prompt = (
@@ -188,29 +189,42 @@ def main():
         st.header("설정 및 검색")
         
         # 1. 명화 검색 UI
-        search_query = st.text_input("🖼️ MET 박물관 작품 검색", st.session_state.get('last_query', "Monet"))
+        search_query = st.text_input("🖼️ MET 박물관 작품 검색 (작가 이름)", st.session_state.get('last_query', "Monet"))
         st.session_state['last_query'] = search_query
 
         # --- 검색 버튼 ---
         if st.button("🔍 검색 실행", type="secondary"):
             st.session_state['search_triggered'] = True
-            st.session_state['ai_params'] = None # 초기화
-            st.session_state['artwork_list'] = [] # 초기화
-            st.session_state['selected_artwork_details'] = None # 선택 작품 초기화
+            st.session_state['ai_params'] = None 
+            st.session_state['artwork_list'] = [] 
+            st.session_state['selected_artwork_details'] = None 
             
-            with st.spinner(f"'{search_query}' 작품 ID 검색 중..."):
+            with st.spinner(f"'{search_query}' 작품 ID 검색 중 및 작가 필터링 중..."):
                 object_ids = fetch_artworks(search_query)
             
             if object_ids:
                 temp_list = []
+                # 💡 작가 필터링을 위한 검색어 소문자 변환 및 공백 제거
+                search_term_lower = search_query.lower().strip()
+                
+                # 상위 100개 ID를 순회하며 상세 정보 조회 및 필터링
                 for obj_id in object_ids:
                     detail = get_artwork_details(obj_id)
-                    if detail and detail['image_url']:
+                    
+                    artist_name_lower = detail.get('artist', '').lower()
+                    
+                    # 💡 작가 이름이 검색어를 포함하고, 이미지 URL이 있는 경우에만 리스트에 추가
+                    if detail and detail['image_url'] and search_term_lower in artist_name_lower:
                         temp_list.append(detail)
+                        
+                        # 갤러리 표시 부하를 줄이기 위해 최대 18개만 필터링
+                        if len(temp_list) >= 18: 
+                             break
+                             
                 st.session_state['artwork_list'] = temp_list
                 
             if not st.session_state['artwork_list']:
-                st.warning("검색 결과가 없거나 이미지가 포함된 작품이 없습니다.")
+                st.warning("⚠️ 검색 결과가 없거나 이미지가 포함된 작품이 없습니다. 작가 이름의 철자를 확인하거나 다른 검색어를 시도해 보세요.")
                 st.session_state['search_triggered'] = False
 
         st.markdown("---")
@@ -228,7 +242,6 @@ def main():
 
 
     with tab1:
-        # 💡 세션 상태에서 선택된 작품을 가져옵니다.
         selected_artwork = st.session_state.get('selected_artwork_details')
         point_count_val = st.session_state.get('point_count_key', 500)
         
@@ -300,6 +313,8 @@ def main():
             # --- 3. 갤러리 형식 검색 결과 표시 (작품 선택 전) ---
             if st.session_state.get('search_triggered') and st.session_state['artwork_list']:
                 st.header("🔍 검색 결과 갤러리")
+                st.caption(f"**'{st.session_state['last_query']}'** 작가와 관련된 작품을 필터링했습니다. '이 작품 선택' 버튼을 눌러 분석을 시작하세요.")
+                
                 artwork_details_list = st.session_state['artwork_list']
                 
                 cols = st.columns(3) 
@@ -311,28 +326,27 @@ def main():
                         st.image(art['image_url'], use_column_width=True)
                         st.caption(f"**{art['title']}** - {art['artist']}")
                         
-                        # 버튼 클릭 시 세션 상태 업데이트 후 재실행
                         if st.button("이 작품 선택", key=f"select_art_{art['object_id']}"):
                             st.session_state['selected_artwork_details'] = art
                             st.experimental_rerun() 
                             
-                st.markdown("---")
-                st.info("갤러리에서 '이 작품 선택' 버튼을 눌러 분석을 시작하세요.")
-            
             elif st.session_state.get('search_triggered') and not st.session_state['artwork_list']:
-                 st.warning("⚠️ 검색 결과가 없거나 이미지가 포함된 작품이 없습니다. 다른 검색어를 시도해 보세요.")
+                 st.warning("⚠️ 검색 결과가 없거나 이미지가 포함된 작품이 없습니다. 작가 이름의 철자를 확인하거나 다른 검색어를 시도해 보세요.")
             
             else:
                  st.info("검색어를 입력하고 '검색 실행' 버튼을 눌러 프로젝트를 시작하세요.")
 
     with tab2:
-        st.header("💡 추가 확장 및 배포 가이드")
+        st.header("💡 최종 확장 및 배포 가이드")
         st.markdown("""
-        ### 1. 갤러리 기능 추가
-        - 현재 다운로드 버튼을 통해 개별 파일을 얻을 수 있지만, 생성된 포스터 정보를 세션 상태에 저장하여 별도의 '갤러리' 탭에 모아 볼 수 있습니다.
+        ### 1. 최종 결과물 구성
+        - **배포 준비:** 최종 코드를 확인하고 `requirements.txt`에 필요한 라이브러리(`streamlit`, `requests`, `openai`, `matplotlib`, `numpy`)가 모두 포함되어 있는지 확인합니다.
+        - **갤러리 확장 (선택):** 생성된 포스터 정보들을 세션 상태에 저장하여 별도의 갤러리 탭에 모아 볼 수 있습니다.
 
         ### 2. 최종 배포
-        - Github 저장소에 `streamlit_app.py`, `requirements.txt`를 커밋하고 Streamlit Cloud에 배포합니다.
+        
+        1.  **Github 커밋:** 수정된 `streamlit_app.py`와 `requirements.txt`를 Github 저장소에 업로드합니다.
+        2.  **Streamlit Cloud 배포:** Streamlit Cloud에 접속하여 해당 Github 저장소를 연결하고 웹 서비스로 배포합니다.
         """)
 
 
