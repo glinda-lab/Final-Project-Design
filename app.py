@@ -189,7 +189,7 @@ def generate_convex_tiles_poster(params):
 
 # --- 5. Streamlit Main App Implementation ---
 def main():
-    st.title("🖼️ AI-Powered Generative Art Designer")
+    st.title("🖼️ From Canvas To Code")
     st.markdown("---")
     
     # Updated Tab Names
