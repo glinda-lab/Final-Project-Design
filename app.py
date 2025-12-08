@@ -33,7 +33,7 @@ if 'point_count_key' not in st.session_state:
     st.session_state['point_count_key'] = 500
 if 'selected_artwork_details' not in st.session_state:
     st.session_state['selected_artwork_details'] = None
-# [Added] List to store generated poster information
+# List to store generated poster information
 if 'generated_posters' not in st.session_state:
     st.session_state['generated_posters'] = []
 
@@ -45,7 +45,7 @@ def fetch_artworks(search_term):
     if not search_term:
         return []
     search_url = f"{MET_API_BASE_URL}/search"
-    # Uses broad search as MET API does not support field-specific search (e.g., artist only) in this endpoint
+    # Uses broad search as MET API does not support field-specific search in this endpoint
     params = {'q': search_term, 'hasImages': True, 'isPublicDomain': True}
     try:
         response = requests.get(search_url, params=params)
@@ -199,7 +199,8 @@ def main():
         st.header("Settings & Search")
         
         # 1. Artwork Search UI
-        search_query = st.text_input("🖼️ MET Museum Artwork Search (Artist Name or Artwork Title)", st.session_state.get('last_query', "Monet"))
+        # Adjusted prompt to reflect broad search nature
+        search_query = st.text_input("🖼️ MET Museum Artwork Search (Keyword or Term)", st.session_state.get('last_query', "Monet"))
         st.session_state['last_query'] = search_query
 
         # --- Search Button ---
@@ -214,8 +215,6 @@ def main():
             
             if object_ids:
                 temp_list = []
-                # Convert search term to lowercase and strip for robust filtering
-                search_term_lower = search_query.lower().strip()
                 
                 # Iterate through the top 100 IDs to fetch details and filter
                 for obj_id in object_ids:
@@ -225,16 +224,9 @@ def main():
                     if detail is None:
                         continue 
                         
-                    artist_name_lower = detail.get('artist', '').lower()
-                    # Convert artwork title to lowercase for comparison
-                    title_lower = detail.get('title', '').lower()
-
-                    # Filtering Condition: Search term must be in either Artist Name OR Artwork Title
-                    is_artist_match = search_term_lower in artist_name_lower
-                    is_title_match = search_term_lower in title_lower
-                    
-                    # Only append if image exists AND title or artist matches the search term
-                    if detail['image_url'] and (is_artist_match or is_title_match):
+                    # 💡 Relaxed Filtering: Only check if a displayable image URL exists.
+                    # This relies on the MET API's broad keyword search for relevance.
+                    if detail['image_url']:
                         temp_list.append(detail)
                         
                         # Limit to max 18 results to prevent gallery overload
@@ -351,7 +343,7 @@ def main():
             # --- 3. Gallery Display of Search Results (Before Selection) ---
             if st.session_state.get('search_triggered') and st.session_state['artwork_list']:
                 st.header("🔍 Search Results Gallery")
-                st.caption(f"Artworks related to '**{st.session_state['last_query']}**' have been filtered. Click the 'Select This Artwork' button to start analysis.")
+                st.caption(f"Artworks broadly related to '**{st.session_state['last_query']}**' have been filtered for images. Click the 'Select This Artwork' button to start analysis.")
                 
                 artwork_details_list = st.session_state['artwork_list']
                 
