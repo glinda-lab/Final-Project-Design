@@ -8,7 +8,7 @@ import json
 import io
 
 # --- 1. 환경 설정 및 API 키 설정 ---
-st.set_page_config(layout="wide", page_title="AI 기반 생성형 미술 디자이너 (작가 필터링)")
+st.set_page_config(layout="wide", page_title="AI 기반 생성형 미술 디자이너")
 
 # OpenAI API 키 설정
 try:
@@ -33,6 +33,9 @@ if 'point_count_key' not in st.session_state:
     st.session_state['point_count_key'] = 500
 if 'selected_artwork_details' not in st.session_state:
     st.session_state['selected_artwork_details'] = None
+# 💡 [추가] 생성된 포스터 정보를 저장할 리스트
+if 'generated_posters' not in st.session_state:
+    st.session_state['generated_posters'] = []
 
 
 # --- 2. MET Museum API 함수 ---
@@ -66,7 +69,6 @@ def get_artwork_details(object_id):
             'object_id': details.get('objectID')
         }
     except requests.exceptions.RequestException:
-        # 오류 발생 시 None 반환
         return None
 
 # --- 3. AI 분석 및 디자인 파라미터 추출 함수 ---
@@ -187,7 +189,8 @@ def main():
     st.title("🖼️ AI 기반 생성형 미술 디자이너")
     st.markdown("---")
     
-    tab1, tab2 = st.tabs(["🖼️ 작품 분석 및 포스터 생성", "💡 확장 가이드"])
+    # 💡 탭 이름 수정: Tab 2를 '저장된 포스터 갤러리'로 변경
+    tab1, tab2 = st.tabs(["🖼️ 작품 분석 및 포스터 생성", "🎨 저장된 포스터 갤러리"])
 
     with st.sidebar:
         st.header("설정 및 검색")
@@ -306,6 +309,24 @@ def main():
                         buf = io.BytesIO()
                         poster_fig.savefig(buf, format="png", bbox_inches='tight', pad_inches=0.1)
                         
+                        # 💡 [추가] 생성된 포스터 정보를 세션에 저장
+                        poster_info = {
+                            'title': selected_artwork['title'],
+                            'artist': selected_artwork['artist'],
+                            'style': selected_style,
+                            'image_data': buf.getvalue() # PNG 바이트 데이터 저장
+                        }
+                        
+                        # 중복 저장을 막기 위해 현재 리스트에 같은 항목이 없으면 추가
+                        is_duplicate = any(
+                            p['title'] == poster_info['title'] and 
+                            p['style'] == poster_info['style'] 
+                            for p in st.session_state['generated_posters']
+                        )
+                        if not is_duplicate:
+                            st.session_state['generated_posters'].append(poster_info)
+
+
                         st.download_button(
                             label="💾 포스터 PNG 다운로드",
                             data=buf.getvalue(),
@@ -344,15 +365,34 @@ def main():
                  st.info("검색어를 입력하고 '검색 실행' 버튼을 눌러 프로젝트를 시작하세요.")
 
     with tab2:
-        st.header("💡 최종 확장 및 배포 가이드")
-        st.markdown("""
-        ### 1. 최종 결과물 구성
-        - **배포 준비:** 최종 코드를 확인하고 `requirements.txt`에 필요한 라이브러리(`streamlit`, `requests`, `openai`, `matplotlib`, `numpy`)가 모두 포함되어 있는지 확인합니다.
-        - **갤러리 확장 (선택):** 생성된 포스터 정보들을 세션 상태에 저장하여 별도의 갤러리 탭에 모아 볼 수 있습니다.
-
-        ### 2. 최종 배포
-        1.  **Github 커밋:** 수정된 `streamlit_app.py`와 `requirements.txt`를 Github 저장소에 업로드합니다.
-        2.  **Streamlit Cloud 배포:** Streamlit Cloud에 접속하여 해당 Github 저장소를 연결하고 웹 서비스로 배포합니다.         """)
+        st.header("🎨 저장된 포스터 갤러리")
+        
+        saved_posters = st.session_state['generated_posters']
+        
+        if not saved_posters:
+            st.info("아직 저장된 포스터가 없습니다. '작품 분석 및 포스터 생성' 탭에서 포스터를 만든 후 이 갤러리를 확인하세요.")
+        else:
+            # 💡 저장된 포스터를 3열 갤러리 형태로 표시
+            num_cols = 3
+            cols = st.columns(num_cols)
+            
+            for index, poster in enumerate(saved_posters):
+                col = cols[index % num_cols]
+                
+                with col:
+                    # 저장된 바이트 데이터를 이미지로 표시
+                    col.image(poster['image_data'], caption=f"{poster['style']} - {poster['title']}", use_column_width='always')
+                    col.markdown(f"**원본:** {poster['title']}")
+                    col.markdown(f"**스타일:** {poster['style']}")
+                    
+                    # 다운로드 버튼 재활성화 (선택 사항)
+                    col.download_button(
+                        label="다운로드",
+                        data=poster['image_data'],
+                        file_name=f"{poster['title']}_{poster['style']}_saved.png",
+                        mime="image/png",
+                        key=f"download_saved_{index}"
+                    )
 
 
 if __name__ == "__main__":
