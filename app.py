@@ -8,7 +8,7 @@ import json
 import io
 
 # --- 1. Environment Setup and API Key Configuration ---
-st.set_page_config(layout="wide", page_title="AI-Powered Generative Art Designer")
+st.set_page_config(layout="wide", page_title="From Canvas To Code")
 
 # OpenAI API Key Configuration
 try:
@@ -204,7 +204,7 @@ def main():
         st.session_state['last_query'] = search_query
 
         # --- Search Button ---
-        if st.button("🔍 Execute Search", type="secondary"):
+        if st.button("🔍 Search", type="secondary"):
             st.session_state['search_triggered'] = True
             st.session_state['ai_params'] = None 
             st.session_state['artwork_list'] = [] 
