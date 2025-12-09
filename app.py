@@ -9,7 +9,7 @@ import io
 
 # --- 1. Environment Setup and API Key Configuration ---
 # Setting the wide layout for better visual display
-st.set_page_config(layout="wide", page_title="AI Generative Classics")
+st.set_page_config(layout="wide", page_title="From Canvas To Code: AI Generative Classics")
 
 # OpenAI API Key Configuration
 try:
@@ -215,22 +215,22 @@ def main():
     </style>
     """, unsafe_allow_html=True)
     
-    st.markdown("<h1 class='title-text'>🖼️ From Canvas to Code: AI Generative Classics ✨</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 class='title-text'>🖼️ From Canvas to Code</h1>", unsafe_allow_html=True)
     st.markdown("---")
     
     # Tab Names
-    tab1, tab2 = st.tabs(["🖼️ Artwork Analysis & Poster Generation", "🎨 Saved Poster Gallery"])
+    tab1, tab2 = st.tabs(["🖼️ Artwork Analysis & Poster Generation", "🎨 Poster Gallery"])
 
     with st.sidebar:
         # Sidebar is dedicated to settings and input only
         st.header("Settings & Search")
         
         # 1. Artwork Search UI
-        search_query = st.text_input("🖼️ MET Museum Artwork Search (Keyword or Term)", st.session_state.get('last_query', "Monet"))
+        search_query = st.text_input("✨ MET Museum Artwork Search (Keyword or Term)", st.session_state.get('last_query', "Monet"))
         st.session_state['last_query'] = search_query
 
         # --- Search Button ---
-        if st.button("🔍 Execute Search", type="secondary"):
+        if st.button("🔍 Search", type="secondary"):
             st.session_state['search_triggered'] = True
             st.session_state['ai_params'] = None 
             st.session_state['artwork_list'] = [] 
