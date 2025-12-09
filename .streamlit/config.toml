@@ -1,15 +1,15 @@
 [theme]
-# Primary button/accent color: ROYAL BLUE
-primaryColor="#112250" 
+# Primary button/accent color: SWAN WING (밝은 색으로 설정하여 Royal Blue 배경과 대비)
+primaryColor="#F5F0E9" 
 
-# Background color of the main page: SAPPHIRE
-backgroundColor="#3C507D" 
+# Background color of the main page: ROYAL BLUE
+backgroundColor="#112250" 
 
-# Background color of the sidebar and headers: SHELLSTONE 
-secondaryBackgroundColor="#D9CBC2" 
+# Background color of the sidebar and containers: SAPPHIRE 
+secondaryBackgroundColor="#3C507D" 
 
-# Color used for text: OPTIMAL DARK GRAY (가독성 향상을 위해 어두운 색으로 변경)
-textColor="#262730" 
+# Color used for ALL standard text: QUICKSAND
+textColor="#E0C58F" 
 
 # Font family
 font="sans serif"
