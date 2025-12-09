@@ -1,5 +1,5 @@
 [theme]
-# Primary button/accent color: SWAN WING (밝은 색으로 설정하여 Royal Blue 배경과 대비)
+# Primary button/accent color: SWAN WING
 primaryColor="#F5F0E9" 
 
 # Background color of the main page: ROYAL BLUE
@@ -11,5 +11,5 @@ secondaryBackgroundColor="#3C507D"
 # Color used for ALL standard text: QUICKSAND
 textColor="#E0C58F" 
 
-# Font family
+# 폰트 계열을 셰리프(serif)로 설정
 font="serif"
