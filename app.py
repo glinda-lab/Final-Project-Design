@@ -201,21 +201,26 @@ def generate_convex_tiles_poster(params):
 # --- 5. Streamlit Main App Implementation ---
 def main():
     
-    # [Design Improvement] Use only the basic CSS for the title, 
-    # relying on config.toml for all other text (textColor: Quicksand).
+    # [Design Improvement] Inject CSS to fix button text color visibility
     st.markdown("""
     <style>
-    /* Custom style for main H1 title (uses Quicksand from config) */
+    /* Custom style for main H1 title */
     .title-text {
         font-size: 2.5em; 
         text-align: center;
         font-weight: bold;
-        margin-bottom: 0;
+    }
+    
+    /* FIX: Custom style for the specific AI Analysis Button text */
+    /* Forces the text inside standard buttons to a dark color for visibility */
+    .stButton button p { 
+        color: #112250 !important; /* ROYAL BLUE: Dark color for contrast */
+        font-weight: bold;
     }
     </style>
     """, unsafe_allow_html=True)
     
-    st.markdown("<h1 class='title-text'>🖼️ From Canvas to Code</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 class='title-text'>✨ From Canvas to Code</h1>", unsafe_allow_html=True)
     st.markdown("---")
     
     # Tab Names
