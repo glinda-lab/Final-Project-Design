@@ -236,7 +236,7 @@ def main():
 
         # --- Search Button ---
         # Note: The 'Search' button is the default primary button, using primaryColor (#F5F0E9) for background.
-        if st.button("🔍 Execute Search", type="secondary"): 
+        if st.button("🔍 Search", type="secondary"): 
             st.session_state['search_triggered'] = True
             st.session_state['ai_params'] = None 
             st.session_state['artwork_list'] = [] 
