@@ -9,7 +9,7 @@ import io
 
 # --- 1. Environment Setup and API Key Configuration ---
 # Setting the wide layout for better visual display
-st.set_page_config(layout="wide", page_title="From Canvas To Code: AI Generative Classics")
+st.set_page_config(layout="wide", page_title="Abstract Classics: AI's New Palette")
 
 # OpenAI API Key Configuration
 try:
