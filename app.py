@@ -214,7 +214,7 @@ def main():
     /* FIX: Custom style for ALL button text (Search, Select, AI Analysis) */
     /* Forces the text inside buttons (which use primaryColor/Swan Wing background) to a dark color for contrast */
     .stButton button p { 
-        color: #112250 !important; /* ROYAL BLUE: 짙은 남색으로 텍스트 색상 변경 */
+        color: #112250 !important; /* ROYAL BLUE */
         font-weight: bold;
     }
     </style>
@@ -410,7 +410,7 @@ def main():
                  st.warning("⚠️ No search results found or no images available for the artworks. Check the spelling or try a different search term.")
             
             else:
-                 st.info("Enter a search query and click 'Execute Search' to start the project.")
+                 st.info("Enter a search query and click 'Search' to start the project.")
 
     with tab2:
         st.header("🎨 Saved Poster Gallery")
