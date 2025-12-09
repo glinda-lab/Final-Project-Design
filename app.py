@@ -9,7 +9,7 @@ import io
 
 # --- 1. Environment Setup and API Key Configuration ---
 # Setting the wide layout for better visual display
-st.set_page_config(layout="wide", page_title="Abstract Classics: AI's New Palette")
+st.set_page_config(layout="wide", page_title="AI Generative Classics")
 
 # OpenAI API Key Configuration
 try:
@@ -224,18 +224,19 @@ def main():
     st.markdown("---")
     
     # Tab Names
-    tab1, tab2 = st.tabs(["🖼️ Artwork Analysis & Poster Generation", "🎨 Poster Gallery"])
+    tab1, tab2 = st.tabs(["🖼️ Artwork Analysis & Poster Generation", "🎨 Saved Poster Gallery"])
 
     with st.sidebar:
         # Sidebar is dedicated to settings and input only
         st.header("Settings & Search")
         
         # 1. Artwork Search UI
-        search_query = st.text_input("✨ MET Museum Artwork Search (Keyword or Term)", st.session_state.get('last_query', "Monet"))
+        search_query = st.text_input("🖼️ MET Museum Artwork Search (Keyword or Term)", st.session_state.get('last_query', "Monet"))
         st.session_state['last_query'] = search_query
 
         # --- Search Button ---
-        if st.button("🔍 Search", type="secondary"):
+        # Note: The 'Search' button is the default primary button, using primaryColor (#F5F0E9) for background.
+        if st.button("🔍 Execute Search", type="secondary"): 
             st.session_state['search_triggered'] = True
             st.session_state['ai_params'] = None 
             st.session_state['artwork_list'] = [] 
@@ -300,6 +301,7 @@ def main():
             with col2:
                 st.subheader("Artwork Analysis and Poster Generation")
                 
+                # The 'Start AI Analysis' button uses the primaryColor background, and its text is fixed by CSS
                 if st.button("🤖 Start AI Analysis and Parameter Extraction", type="primary"):
                     st.session_state['ai_params'] = None 
                     with st.spinner("AI is analyzing the masterpiece and extracting parameters..."):
@@ -398,6 +400,7 @@ def main():
                         st.image(art['image_url'], use_column_width=True)
                         st.caption(f"**{art['title']}** - {art['artist']}")
                         
+                        # The 'Select This Artwork' button uses the primaryColor background, and its text is fixed by CSS
                         if st.button("Select This Artwork", key=f"select_art_{art['object_id']}"):
                             st.session_state['selected_artwork_details'] = art
                             st.experimental_rerun() 
