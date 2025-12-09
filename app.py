@@ -211,10 +211,10 @@ def main():
         font-weight: bold;
     }
     
-    /* FIX: Custom style for the specific AI Analysis Button text */
-    /* Forces the text inside standard buttons to a dark color for visibility */
+    /* FIX: Custom style for ALL button text (Search, Select, AI Analysis) */
+    /* Forces the text inside buttons (which use primaryColor/Swan Wing background) to a dark color for contrast */
     .stButton button p { 
-        color: #112250 !important; /* ROYAL BLUE: Dark color for contrast */
+        color: #112250 !important; /* ROYAL BLUE: 짙은 남색으로 텍스트 색상 변경 */
         font-weight: bold;
     }
     </style>
