@@ -8,7 +8,8 @@ import json
 import io
 
 # --- 1. Environment Setup and API Key Configuration ---
-st.set_page_config(layout="wide", page_title="From Canvas To Code")
+# Setting the wide layout for better visual display
+st.set_page_config(layout="wide", page_title="AI Generative Classics")
 
 # OpenAI API Key Configuration
 try:
@@ -45,13 +46,13 @@ def fetch_artworks(search_term):
     if not search_term:
         return []
     search_url = f"{MET_API_BASE_URL}/search"
-    # Uses broad search as MET API does not support field-specific search in this endpoint
+    # Use broad search, request images, and public domain items
     params = {'q': search_term, 'hasImages': True, 'isPublicDomain': True}
     try:
         response = requests.get(search_url, params=params)
         response.raise_for_status()
         data = response.json()
-        # Fetches only up to 100 IDs to reduce filtering load
+        # Fetch only up to 100 IDs to reduce filtering load
         return data.get('objectIDs', [])[:100] 
     except requests.exceptions.RequestException:
         return []
@@ -103,7 +104,7 @@ def get_ai_design_suggestions(artwork_image_url, artwork_title):
         content = response.choices[0].message.content
         return json.loads(content)
     except openai.APIError as e:
-        # Provide a clear message to the user when an API error occurs
+        # Use st.error for API error feedback
         st.error(f"API Error during AI analysis: Error code: {e.status} - {{'error': '{e.message}'}}")
         st.warning("Please check if the API quota is exceeded or the key has expired.")
         return None
@@ -113,6 +114,7 @@ def get_ai_design_suggestions(artwork_image_url, artwork_title):
 
 # --- 4. Generative Poster Creation Functions (3 Styles) ---
 def setup_canvas(title):
+    # Maintain 8x8 size for gallery consistency
     fig, ax = plt.subplots(figsize=(8, 8))
     fig.patch.set_facecolor("#FFFFFF")
     ax.set_facecolor("#FFFFFF")
@@ -189,22 +191,35 @@ def generate_convex_tiles_poster(params):
 
 # --- 5. Streamlit Main App Implementation ---
 def main():
-    st.title("🖼️ From Canvas To Code")
+    
+    # [Design Improvement] Use HTML/Markdown for title emphasis and styling
+    st.markdown("""
+    <style>
+    .title-text {
+        font-size: 2.5em; 
+        color: #34495E; /* Deep Blue, complements the gold primary color */
+        text-align: center;
+        font-weight: bold;
+        margin-bottom: 0;
+    }
+    </style>
+    <h1 class='title-text'>🖼️ From Canvas to Code: AI Generative Classics ✨</h1>
+    """, unsafe_allow_html=True)
     st.markdown("---")
     
-    # Updated Tab Names
+    # Tab Names
     tab1, tab2 = st.tabs(["🖼️ Artwork Analysis & Poster Generation", "🎨 Saved Poster Gallery"])
 
     with st.sidebar:
+        # [Design Improvement] Sidebar is dedicated to settings and input only
         st.header("Settings & Search")
         
         # 1. Artwork Search UI
-        # Adjusted prompt to reflect broad search nature
         search_query = st.text_input("🖼️ MET Museum Artwork Search (Keyword or Term)", st.session_state.get('last_query', "Monet"))
         st.session_state['last_query'] = search_query
 
         # --- Search Button ---
-        if st.button("🔍 Search", type="secondary"):
+        if st.button("🔍 Execute Search", type="secondary"):
             st.session_state['search_triggered'] = True
             st.session_state['ai_params'] = None 
             st.session_state['artwork_list'] = [] 
@@ -216,26 +231,24 @@ def main():
             if object_ids:
                 temp_list = []
                 
-                # Iterate through the top 100 IDs to fetch details and filter
                 for obj_id in object_ids:
                     detail = get_artwork_details(obj_id)
                     
-                    # Check for None to prevent AttributeError
                     if detail is None:
                         continue 
                         
-                    # 💡 Relaxed Filtering: Only check if a displayable image URL exists.
-                    # This relies on the MET API's broad keyword search for relevance.
+                    # Relaxed Filtering: Only check if a displayable image URL exists.
                     if detail['image_url']:
                         temp_list.append(detail)
                         
-                        # Limit to max 18 results to prevent gallery overload
+                        # Limit results to max 18 for gallery display
                         if len(temp_list) >= 18: 
                              break
                              
                 st.session_state['artwork_list'] = temp_list
                 
             if not st.session_state['artwork_list']:
+                # [Design Improvement] Use st.warning for feedback
                 st.warning("⚠️ No search results found or no images available for the artworks. Check the spelling or try a different search term.")
                 st.session_state['search_triggered'] = False
 
@@ -262,6 +275,7 @@ def main():
             st.header(f"🖼️ Original Artwork: {selected_artwork['title']}")
             st.markdown(f"**Artist:** {selected_artwork['artist']} | **ID:** {selected_artwork['object_id']}")
             
+            # [Design Improvement] Use st.columns for visual balance
             col1, col2 = st.columns([1, 2])
             
             with col1:
@@ -280,14 +294,26 @@ def main():
                     params = st.session_state['ai_params']
                     
                     st.markdown("---")
-                    st.subheader("📝 AI Design Analysis and Suggestion")
-                    analysis_text = params.get('analysis', "No analysis result available.")
-                    st.info(analysis_text)
                     
-                    st.markdown("### 📐 Extracted Generative Parameters")
-                    param_display = {k: v for k, v in params.items() if k != 'analysis'}
-                    st.code(json.dumps(param_display, indent=2))
-                    
+                    # [Design Improvement] Use st.container to group related sections
+                    with st.container(border=True):
+                        st.subheader("📝 AI Design Analysis and Suggestion")
+                        analysis_text = params.get('analysis', "No analysis result available.")
+                        
+                        # [Design Improvement] Use st.expander to keep the main screen clean
+                        with st.expander("📝 View Detailed AI Analysis"):
+                            # Use st.info to display analysis information
+                            st.info(analysis_text) 
+
+                        st.markdown("---") 
+                        st.markdown("### 📐 Extracted Generative Parameters")
+                        
+                        param_display = {k: v for k, v in params.items() if k != 'analysis'}
+                        
+                        # [Design Improvement] Use st.expander to hide the code parameters
+                        with st.expander("⚙️ View Code Parameters"):
+                            st.code(json.dumps(param_display, indent=2))
+                        
                     st.markdown("---")
                     st.subheader("✨ Generative Poster Result")
 
@@ -306,20 +332,19 @@ def main():
                             poster_fig = generate_impressionism_touch_poster(st.session_state['ai_params'], point_count_val)
                         
                         st.pyplot(poster_fig)
+                        # [Design Improvement] Use st.success for positive feedback
                         st.success(f"Poster Generation Complete! (Style: {selected_style})")
                         
                         buf = io.BytesIO()
                         poster_fig.savefig(buf, format="png", bbox_inches='tight', pad_inches=0.1)
                         
-                        # Save the generated poster info to session state
                         poster_info = {
                             'title': selected_artwork['title'],
                             'artist': selected_artwork['artist'],
                             'style': selected_style,
-                            'image_data': buf.getvalue() # Store PNG byte data
+                            'image_data': buf.getvalue() 
                         }
                         
-                        # Prevent duplicate saving
                         is_duplicate = any(
                             p['title'] == poster_info['title'] and 
                             p['style'] == poster_info['style'] 
@@ -347,6 +372,7 @@ def main():
                 
                 artwork_details_list = st.session_state['artwork_list']
                 
+                # Use columns for a clean grid view
                 cols = st.columns(3) 
                 
                 for index, art in enumerate(artwork_details_list):
@@ -361,6 +387,7 @@ def main():
                             st.experimental_rerun() 
                             
             elif st.session_state.get('search_triggered') and not st.session_state['artwork_list']:
+                 # Use st.warning for feedback
                  st.warning("⚠️ No search results found or no images available for the artworks. Check the spelling or try a different search term.")
             
             else:
@@ -383,9 +410,11 @@ def main():
                 
                 with col:
                     # Display the image from stored byte data
-                    col.image(poster['image_data'], caption=f"{poster['style']} - {poster['title']}", use_column_width='always')
-                    col.markdown(f"**Original:** {poster['title']}")
-                    col.markdown(f"**Style:** {poster['style']}")
+                    # Matplotlib canvas size is fixed (8x8) to maintain aspect ratio consistency
+                    col.image(poster['image_data'], use_column_width='always')
+                    
+                    # [Design Improvement] Use st.caption with bold text and emoji for clarity
+                    col.caption(f"**Original:** {poster['title']} | **Style:** {poster['style']} ✨")
                     
                     # Re-enable download button
                     col.download_button(
