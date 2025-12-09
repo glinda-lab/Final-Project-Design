@@ -220,7 +220,7 @@ def main():
     </style>
     """, unsafe_allow_html=True)
     
-    st.markdown("<h1 class='title-text'>✨ From Canvas to Code</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 class='title-text'>✨ From CANVAS To CODE</h1>", unsafe_allow_html=True)
     st.markdown("---")
     
     # Tab Names
