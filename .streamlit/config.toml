@@ -1,9 +1,9 @@
 [theme]
-# Primary button color (클래식 골드)
+# Primary button color (Classic Gold)
 primaryColor="#B8860B" 
-# Background color of the main page (밝은 회색)
+# Background color of the main page (Light Gray)
 backgroundColor="#F0F2F6" 
-# Background color of the sidebar and headers (흰색)
+# Background color of the sidebar and headers (White)
 secondaryBackgroundColor="#FFFFFF" 
 # Color used for text
 textColor="#262730" 
