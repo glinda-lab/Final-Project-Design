@@ -23,10 +23,6 @@ except KeyError:
 # MET Museum API Base URL
 MET_API_BASE_URL = "https://collectionapi.metmuseum.org/public/collection/v1"
 
-# NOTE: The RESTRICTED_COLOR_PALETTE definition has been removed, 
-# allowing poster generation functions to use AI-suggested colors.
-
-
 # Initialize Session State Variables
 if 'search_triggered' not in st.session_state:
     st.session_state['search_triggered'] = False
@@ -131,7 +127,7 @@ def setup_canvas(title):
 def generate_impressionism_touch_poster(params, point_count):
     """Style 1: Impressionism Touch"""
     
-    # [Revert Change] Use the AI-suggested color palette
+    # Use the AI-suggested color palette
     colors = params.get('color_palette', ['#FF0000', '#0000FF', '#00FF00', '#FFFF00'])
     
     layers = params.get('layers', 5)
@@ -152,7 +148,7 @@ def generate_impressionism_touch_poster(params, point_count):
 def generate_layered_lines_poster(params, point_count):
     """Style 2: Layered Lines"""
     
-    # [Revert Change] Use the AI-suggested color palette
+    # Use the AI-suggested color palette
     colors = params.get('color_palette', ['#FF0000', '#0000FF', '#00FF00', '#FFFF00'])
     
     layers = params.get('layers', 5)
@@ -180,7 +176,7 @@ def generate_layered_lines_poster(params, point_count):
 def generate_convex_tiles_poster(params):
     """Style 3: Convex Tiles"""
     
-    # [Revert Change] Use the AI-suggested color palette
+    # Use the AI-suggested color palette
     colors = params.get('color_palette', ['#FF0000', '#0000FF', '#00FF00', '#FFFF00'])
     
     layers = params.get('layers', 5)
@@ -205,9 +201,11 @@ def generate_convex_tiles_poster(params):
 # --- 5. Streamlit Main App Implementation ---
 def main():
     
-    # [Design Change] Use HTML/Markdown for title emphasis and set text color to QUICKSAND (#E0C58F)
+    # [Design Improvement] Inject CSS to style the main content text to Quicksand (#E0C58F)
+    # This overrides the dark textColor set in config.toml, but only for the main content.
     st.markdown("""
     <style>
+    /* Custom style for main H1 title */
     .title-text {
         font-size: 2.5em; 
         color: #E0C58F; /* QUICKSAND */
@@ -215,9 +213,29 @@ def main():
         font-weight: bold;
         margin-bottom: 0;
     }
+
+    /* Custom style for ALL standard text in the main content area */
+    /* Targeting the main content block and components for Quicksand color */
+    section.main .block-container p,
+    section.main h2,
+    section.main h3,
+    section.main h4,
+    section.main .stMarkdown,
+    section.main .stCaption,
+    section.main .stInfo,
+    section.main .stSuccess {
+        color: #E0C58F !important;
+    }
+
+    /* Ensure the st.info/st.success icons/borders also stand out on the dark background */
+    section.main .stAlert {
+        background-color: rgba(224, 197, 143, 0.1); /* Light Quicksand overlay */
+        border-left: 5px solid #E0C58F !important;
+    }
     </style>
-    <h1 class='title-text'>🖼️ From Canvas to Code: AI Generative Classics ✨</h1>
     """, unsafe_allow_html=True)
+    
+    st.markdown("<h1 class='title-text'>🖼️ From Canvas to Code: AI Generative Classics ✨</h1>", unsafe_allow_html=True)
     st.markdown("---")
     
     # Tab Names
