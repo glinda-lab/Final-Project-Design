@@ -8,8 +8,8 @@ backgroundColor="#3C507D"
 # Background color of the sidebar and headers: SHELLSTONE 
 secondaryBackgroundColor="#D9CBC2" 
 
-# Color used for text: QUICKSAND
-textColor="#E0C58F" 
+# Color used for text: OPTIMAL DARK GRAY (가독성 향상을 위해 어두운 색으로 변경)
+textColor="#262730" 
 
 # Font family
 font="sans serif"
