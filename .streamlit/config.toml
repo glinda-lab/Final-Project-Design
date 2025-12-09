@@ -1,11 +1,15 @@
 [theme]
-# Primary button color (Classic Gold)
-primaryColor="#B8860B" 
-# Background color of the main page (Light Gray)
-backgroundColor="#F0F2F6" 
-# Background color of the sidebar and headers (White)
-secondaryBackgroundColor="#FFFFFF" 
-# Color used for text
-textColor="#262730" 
+# Primary button/accent color: ROYAL BLUE
+primaryColor="#112250" 
+
+# Background color of the main page: SAPPHIRE
+backgroundColor="#3C507D" 
+
+# Background color of the sidebar and headers: SHELLSTONE 
+secondaryBackgroundColor="#D9CBC2" 
+
+# Color used for text: QUICKSAND
+textColor="#E0C58F" 
+
 # Font family
 font="sans serif"
