@@ -23,6 +23,10 @@ except KeyError:
 # MET Museum API Base URL
 MET_API_BASE_URL = "https://collectionapi.metmuseum.org/public/collection/v1"
 
+# NOTE: The RESTRICTED_COLOR_PALETTE definition has been removed, 
+# allowing poster generation functions to use AI-suggested colors.
+
+
 # Initialize Session State Variables
 if 'search_triggered' not in st.session_state:
     st.session_state['search_triggered'] = False
@@ -126,7 +130,10 @@ def setup_canvas(title):
 
 def generate_impressionism_touch_poster(params, point_count):
     """Style 1: Impressionism Touch"""
+    
+    # [Revert Change] Use the AI-suggested color palette
     colors = params.get('color_palette', ['#FF0000', '#0000FF', '#00FF00', '#FFFF00'])
+    
     layers = params.get('layers', 5)
     wobble = params.get('wobble_factor', 0.2)
     
@@ -144,7 +151,10 @@ def generate_impressionism_touch_poster(params, point_count):
 
 def generate_layered_lines_poster(params, point_count):
     """Style 2: Layered Lines"""
+    
+    # [Revert Change] Use the AI-suggested color palette
     colors = params.get('color_palette', ['#FF0000', '#0000FF', '#00FF00', '#FFFF00'])
+    
     layers = params.get('layers', 5)
     wobble = params.get('wobble_factor', 0.2)
     
@@ -169,7 +179,10 @@ def generate_layered_lines_poster(params, point_count):
 
 def generate_convex_tiles_poster(params):
     """Style 3: Convex Tiles"""
+    
+    # [Revert Change] Use the AI-suggested color palette
     colors = params.get('color_palette', ['#FF0000', '#0000FF', '#00FF00', '#FFFF00'])
+    
     layers = params.get('layers', 5)
     wobble = params.get('wobble_factor', 0.2)
     
@@ -192,12 +205,12 @@ def generate_convex_tiles_poster(params):
 # --- 5. Streamlit Main App Implementation ---
 def main():
     
-    # [Design Improvement] Use HTML/Markdown for title emphasis and styling
+    # [Design Change] Use HTML/Markdown for title emphasis and set text color to QUICKSAND (#E0C58F)
     st.markdown("""
     <style>
     .title-text {
         font-size: 2.5em; 
-        color: #34495E; /* Deep Blue, complements the gold primary color */
+        color: #E0C58F; /* QUICKSAND */
         text-align: center;
         font-weight: bold;
         margin-bottom: 0;
@@ -211,7 +224,7 @@ def main():
     tab1, tab2 = st.tabs(["🖼️ Artwork Analysis & Poster Generation", "🎨 Saved Poster Gallery"])
 
     with st.sidebar:
-        # [Design Improvement] Sidebar is dedicated to settings and input only
+        # Sidebar is dedicated to settings and input only
         st.header("Settings & Search")
         
         # 1. Artwork Search UI
@@ -248,7 +261,7 @@ def main():
                 st.session_state['artwork_list'] = temp_list
                 
             if not st.session_state['artwork_list']:
-                # [Design Improvement] Use st.warning for feedback
+                # Use st.warning for feedback
                 st.warning("⚠️ No search results found or no images available for the artworks. Check the spelling or try a different search term.")
                 st.session_state['search_triggered'] = False
 
@@ -275,7 +288,7 @@ def main():
             st.header(f"🖼️ Original Artwork: {selected_artwork['title']}")
             st.markdown(f"**Artist:** {selected_artwork['artist']} | **ID:** {selected_artwork['object_id']}")
             
-            # [Design Improvement] Use st.columns for visual balance
+            # Use st.columns for visual balance
             col1, col2 = st.columns([1, 2])
             
             with col1:
@@ -295,12 +308,12 @@ def main():
                     
                     st.markdown("---")
                     
-                    # [Design Improvement] Use st.container to group related sections
+                    # Use st.container to group related sections
                     with st.container(border=True):
                         st.subheader("📝 AI Design Analysis and Suggestion")
                         analysis_text = params.get('analysis', "No analysis result available.")
                         
-                        # [Design Improvement] Use st.expander to keep the main screen clean
+                        # Use st.expander to keep the main screen clean
                         with st.expander("📝 View Detailed AI Analysis"):
                             # Use st.info to display analysis information
                             st.info(analysis_text) 
@@ -310,7 +323,7 @@ def main():
                         
                         param_display = {k: v for k, v in params.items() if k != 'analysis'}
                         
-                        # [Design Improvement] Use st.expander to hide the code parameters
+                        # Use st.expander to hide the code parameters
                         with st.expander("⚙️ View Code Parameters"):
                             st.code(json.dumps(param_display, indent=2))
                         
@@ -332,7 +345,7 @@ def main():
                             poster_fig = generate_impressionism_touch_poster(st.session_state['ai_params'], point_count_val)
                         
                         st.pyplot(poster_fig)
-                        # [Design Improvement] Use st.success for positive feedback
+                        # Use st.success for positive feedback
                         st.success(f"Poster Generation Complete! (Style: {selected_style})")
                         
                         buf = io.BytesIO()
@@ -413,7 +426,7 @@ def main():
                     # Matplotlib canvas size is fixed (8x8) to maintain aspect ratio consistency
                     col.image(poster['image_data'], use_column_width='always')
                     
-                    # [Design Improvement] Use st.caption with bold text and emoji for clarity
+                    # Use st.caption with bold text and emoji for clarity
                     col.caption(f"**Original:** {poster['title']} | **Style:** {poster['style']} ✨")
                     
                     # Re-enable download button
