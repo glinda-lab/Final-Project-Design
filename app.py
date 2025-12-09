@@ -201,51 +201,16 @@ def generate_convex_tiles_poster(params):
 # --- 5. Streamlit Main App Implementation ---
 def main():
     
-    # [Design Improvement] Inject robust CSS to style the main content text to Quicksand (#E0C58F).
-    # This overrides the dark textColor set in config.toml for the main page elements, 
-    # while keeping the dark textColor active in the sidebar for legibility against the light background.
+    # [Design Improvement] Use only the basic CSS for the title, 
+    # relying on config.toml for all other text (textColor: Quicksand).
     st.markdown("""
     <style>
-    /* 1. Custom style for main H1 title */
+    /* Custom style for main H1 title (uses Quicksand from config) */
     .title-text {
         font-size: 2.5em; 
-        color: #E0C58F; /* QUICKSAND */
         text-align: center;
         font-weight: bold;
         margin-bottom: 0;
-    }
-
-    /* 2. Custom style for ALL standard text in the main content area */
-    /* Targeting the primary content container and all common text elements */
-    
-    /* Headers (H2, H3, st.subheader) */
-    section.main h2,
-    section.main h3,
-    section.main h4 {
-        color: #E0C58F !important; /* QUICKSAND */
-    }
-
-    /* General text, paragraphs, captions, and links */
-    section.main p,
-    section.main li,
-    section.main a,
-    section.main [data-testid="stMarkdownContainer"],
-    section.main .stCaption,
-    section.main .stText,
-    section.main .stAlert div {
-        color: #E0C58F !important; /* QUICKSAND */
-    }
-
-    /* Override for Info/Success boxes to match theme */
-    section.main [data-testid="stInfo"],
-    section.main [data-testid="stSuccess"] {
-        background-color: rgba(224, 197, 143, 0.1); /* Light Quicksand overlay */
-        border-left: 5px solid #E0C58F !important;
-    }
-    /* Ensure the text inside alerts is also Quicksand */
-    section.main [data-testid="stInfo"] div,
-    section.main [data-testid="stSuccess"] div {
-        color: #E0C58F !important;
     }
     </style>
     """, unsafe_allow_html=True)
