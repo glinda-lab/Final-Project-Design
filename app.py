@@ -125,7 +125,7 @@ def setup_canvas(title):
     return fig, ax
 
 def generate_impressionism_touch_poster(params, point_count):
-    """Style 1: Impressionism Touch"""
+    """Style 1: Impressionism Touch - Uses AI-suggested color palette."""
     
     # Use the AI-suggested color palette
     colors = params.get('color_palette', ['#FF0000', '#0000FF', '#00FF00', '#FFFF00'])
@@ -146,7 +146,7 @@ def generate_impressionism_touch_poster(params, point_count):
     return fig
 
 def generate_layered_lines_poster(params, point_count):
-    """Style 2: Layered Lines"""
+    """Style 2: Layered Lines - Uses AI-suggested color palette."""
     
     # Use the AI-suggested color palette
     colors = params.get('color_palette', ['#FF0000', '#0000FF', '#00FF00', '#FFFF00'])
@@ -174,7 +174,7 @@ def generate_layered_lines_poster(params, point_count):
     return fig
 
 def generate_convex_tiles_poster(params):
-    """Style 3: Convex Tiles"""
+    """Style 3: Convex Tiles - Uses AI-suggested color palette."""
     
     # Use the AI-suggested color palette
     colors = params.get('color_palette', ['#FF0000', '#0000FF', '#00FF00', '#FFFF00'])
@@ -201,11 +201,12 @@ def generate_convex_tiles_poster(params):
 # --- 5. Streamlit Main App Implementation ---
 def main():
     
-    # [Design Improvement] Inject CSS to style the main content text to Quicksand (#E0C58F)
-    # This overrides the dark textColor set in config.toml, but only for the main content.
+    # [Design Improvement] Inject robust CSS to style the main content text to Quicksand (#E0C58F).
+    # This overrides the dark textColor set in config.toml for the main page elements, 
+    # while keeping the dark textColor active in the sidebar for legibility against the light background.
     st.markdown("""
     <style>
-    /* Custom style for main H1 title */
+    /* 1. Custom style for main H1 title */
     .title-text {
         font-size: 2.5em; 
         color: #E0C58F; /* QUICKSAND */
@@ -214,23 +215,37 @@ def main():
         margin-bottom: 0;
     }
 
-    /* Custom style for ALL standard text in the main content area */
-    /* Targeting the main content block and components for Quicksand color */
-    section.main .block-container p,
+    /* 2. Custom style for ALL standard text in the main content area */
+    /* Targeting the primary content container and all common text elements */
+    
+    /* Headers (H2, H3, st.subheader) */
     section.main h2,
     section.main h3,
-    section.main h4,
-    section.main .stMarkdown,
-    section.main .stCaption,
-    section.main .stInfo,
-    section.main .stSuccess {
-        color: #E0C58F !important;
+    section.main h4 {
+        color: #E0C58F !important; /* QUICKSAND */
     }
 
-    /* Ensure the st.info/st.success icons/borders also stand out on the dark background */
-    section.main .stAlert {
+    /* General text, paragraphs, captions, and links */
+    section.main p,
+    section.main li,
+    section.main a,
+    section.main [data-testid="stMarkdownContainer"],
+    section.main .stCaption,
+    section.main .stText,
+    section.main .stAlert div {
+        color: #E0C58F !important; /* QUICKSAND */
+    }
+
+    /* Override for Info/Success boxes to match theme */
+    section.main [data-testid="stInfo"],
+    section.main [data-testid="stSuccess"] {
         background-color: rgba(224, 197, 143, 0.1); /* Light Quicksand overlay */
         border-left: 5px solid #E0C58F !important;
+    }
+    /* Ensure the text inside alerts is also Quicksand */
+    section.main [data-testid="stInfo"] div,
+    section.main [data-testid="stSuccess"] div {
+        color: #E0C58F !important;
     }
     </style>
     """, unsafe_allow_html=True)
